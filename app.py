@@ -1,7 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 
-# Configure API key from Streamlit secrets
+# Configure API key
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Use stable model
@@ -44,7 +44,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# Input box
+# Chat input
 user_input = st.chat_input("Describe your symptoms...")
 
 if user_input:
@@ -56,11 +56,16 @@ if user_input:
     # Get response from Gemini
     try:
         response = st.session_state.chat.send_message(user_input)
-        bot_reply = response.text
-    except Exception as e:
-        bot_reply = "⚠️ Please wait a moment and try again."
 
-    # Show bot reply
+        if hasattr(response, "text") and response.text:
+            bot_reply = response.text
+        else:
+            bot_reply = "⚠️ No response generated. Please try again."
+
+    except Exception as e:
+        bot_reply = f"❌ Error: {str(e)}"
+
+    # Show bot response
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
         st.markdown(bot_reply)
