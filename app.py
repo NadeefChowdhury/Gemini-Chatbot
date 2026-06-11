@@ -5,7 +5,7 @@ import google.generativeai as genai
 # CONFIG
 # =========================
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-model = genai.GenerativeModel("gemini-2.5-pro")
+model = genai.GenerativeModel("gemini-3.1-flash-lite")
 
 st.set_page_config(page_title="Medical Chatbot", layout="centered")
 st.title("🏥 Medical Assistant")
