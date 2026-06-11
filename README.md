@@ -1,2 +1,2 @@
 # Gemini-Chatbot
-A chatbot made using Gemini API
+A medical advice chatbot made using Gemini API
