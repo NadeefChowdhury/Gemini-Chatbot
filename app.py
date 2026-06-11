@@ -1,71 +1,102 @@
 import streamlit as st
 import google.generativeai as genai
 
-# Configure API key
+# =========================
+# CONFIG
+# =========================
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-
-# Use stable model
 model = genai.GenerativeModel("gemini-2.5-flash")
 
 st.set_page_config(page_title="Medical Chatbot", layout="centered")
-st.title("🏥 Medical Assistant Chatbot")
+st.title("🏥 Medical Assistant")
 
-# Initialize chat with strict instruction
-if "chat" not in st.session_state:
-    st.session_state.chat = model.start_chat(
-        history=[
-            {
-                "role": "user",
-                "parts": ["""
-You are a medical assistant chatbot.
+# =========================
+# EMERGENCY DETECTION (HARD RULE)
+# =========================
+def is_emergency(text):
+    keywords = [
+        "chest pain", "breathing difficulty", "can't breathe",
+        "unconscious", "fainted", "heavy bleeding",
+        "stroke", "seizure", "heart attack"
+    ]
+    text = text.lower()
+    return any(k in text for k in keywords)
 
-STRICT RULES:
-- Keep response under 30 words
-- Use ONLY 3 bullet points
-- No explanations, no paragraphs
+# =========================
+# INITIAL PROMPT
+# =========================
+SYSTEM_PROMPT = """
+You are a medical triage assistant.
+
+RULES:
+- Max 30 words
+- EXACTLY 3 bullet points
+- No explanation
 
 FORMAT:
-• Possible issue: ...
+• Possible issue (not a diagnosis): ...
 • Action: ...
 • Department: ...
 
-If serious symptoms → say "Go to emergency immediately"
-"""]
-            }
-        ]
+EMERGENCY:
+Only say emergency if clearly life-threatening.
+Otherwise give normal advice.
+
+Be calm and realistic.
+"""
+
+# =========================
+# SESSION STATE
+# =========================
+if "chat" not in st.session_state:
+    st.session_state.chat = model.start_chat(
+        history=[{"role": "user", "parts": [SYSTEM_PROMPT]}]
     )
 
-# Store messages
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display chat history
+# =========================
+# DISPLAY CHAT
+# =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# Chat input
+# =========================
+# INPUT
+# =========================
 user_input = st.chat_input("Describe your symptoms...")
 
 if user_input:
-    # Show user message
+    # Show user
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    # Get response from Gemini
-    try:
-        response = st.session_state.chat.send_message(user_input)
+    # =========================
+    # HARD EMERGENCY OVERRIDE
+    # =========================
+    if is_emergency(user_input):
+        bot_reply = """• Possible issue (not a diagnosis): Critical condition
+• Action: Go to emergency immediately
+• Department: Emergency"""
 
-        if hasattr(response, "text") and response.text:
-            bot_reply = response.text
-        else:
-            bot_reply = "⚠️ No response generated. Please try again."
+    else:
+        try:
+            response = st.session_state.chat.send_message(user_input)
 
-    except Exception as e:
-        bot_reply = f"❌ Error: {str(e)}"
+            if hasattr(response, "text") and response.text:
+                bot_reply = response.text
+            else:
+                bot_reply = """• Possible issue (not a diagnosis): Unclear
+• Action: Please describe symptoms again
+• Department: General Medicine"""
 
-    # Show bot response
+        except Exception as e:
+            bot_reply = f"❌ Error: {str(e)}"
+
+    # Show bot
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
         st.markdown(bot_reply)
